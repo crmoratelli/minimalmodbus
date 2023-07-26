@@ -216,6 +216,14 @@ class Instrument:
                 - Defaults to 2.0 s.
         """
 
+        self.pre_transmission = None
+        self.post_transmission = None
+        """Some RS485 half-duplex modules requires toggle the DE/RE pins before and after
+        each transmission. Ideally, this should be controled by the kernel device driver,
+        but appears that this option is not available on all platforms. Optionally, you
+        can set these attributes to functions that will be called when necessary. 
+        """
+
         if _is_serial_object(port):
             self.serial = port  # type: ignore
         elif isinstance(port, str) and (
@@ -1462,9 +1470,16 @@ class Instrument:
             )
             self._print_debug(text)
 
+        if self.pre_transmission is not None:
+            self.pre_transmission()
+
         # Write request
         write_time = time.monotonic()
         self.serial.write(request)
+        self.serial.flush()
+
+        if self.post_transmission is not None:
+            self.post_transmission()
 
         # Read and discard local echo
         if self.handle_local_echo:
